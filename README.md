@@ -9,8 +9,8 @@
 
 ## What It Does
 
-1. **`01_get_activity.py`** — Fetches your GitHub activity via API and exports to CSV/JSON
-2. **`02_explore_activity.ipynb`** — Jupyter notebook for visualizing and analyzing the data
+1. `01_get_activity.py` — Fetches your GitHub activity via API and exports to CSV/JSON
+2. `02_explore_activity.ipynb` — Jupyter notebook for visualizing and analyzing the data
 
 ### Activity Types Collected
 
