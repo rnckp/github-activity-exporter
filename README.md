@@ -3,7 +3,6 @@
 **Export and analyze your GitHub activity across organizations.**
 
 [![Python](https://img.shields.io/badge/python-v3.13+-blue.svg)](https://github.com/rnckp/github-activity-exporter)
-![GitHub License](https://img.shields.io/github/license/machinelearningZH/ai-search_staatsarchiv)
 ![GitHub License](https://img.shields.io/github/license/rnckp/github-activity-exporter)
 [![GitHub Stars](https://img.shields.io/github/stars/rnckp/github-activity-exporter.svg)](https://github.com/rnckp/github-activity-exporter/stargazers)
 <a href="https://github.com/astral-sh/ruff"><img alt="linting - Ruff" class="off-glb" loading="lazy" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
