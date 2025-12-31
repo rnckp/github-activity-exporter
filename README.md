@@ -82,8 +82,6 @@ Open `02_explore_activity.ipynb` in Jupyter/VS Code. The notebook provides:
 - Commit message analysis
 - Organization breakdown
 
-Update the CSV filename in the notebook to match your export.
-
 ## Troubleshooting
 
 | Issue                     | Solution                                                                     |
@@ -97,7 +95,7 @@ Update the CSV filename in the notebook to match your export.
 
 ### Verify Token and Access
 
-**Verify the token is being used and identify the login.** 
+**Verify the token is being used and identify the login.**
 
 Run these two calls and ensure you get your expected username back:
 
@@ -113,7 +111,7 @@ curl -i -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
 
 If `/user` doesn’t return your login, the script will search for the wrong user and likely get zero hits.
 
-**Debug the org discovery (this is the most common “empty output” cause).** 
+**Debug the org discovery (this is the most common “empty output” cause).**
 
 Try both endpoints manually:
 
