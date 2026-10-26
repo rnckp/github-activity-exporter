@@ -27,3 +27,6 @@ target-version = "py313"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 # Ignore Line too long and Module level import not at top of cell
 ignore = ["E402", "E501"]
+
+[tool.uv]
+constraint-dependencies = ["certifi>=2026.10.19"]
