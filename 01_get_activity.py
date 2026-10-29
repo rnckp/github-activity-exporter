@@ -195,8 +195,8 @@ def main() -> int:
         )
     )
 
-    # Calculate total tasks: 7 queries per owner (6 issue/PR queries + 1 commit query)
-    total_tasks = len(scopes) * 7
+    # Calculate total tasks: 8 queries per owner (7 issue/PR queries + 1 commit query)
+    total_tasks = len(scopes) * 8
 
     with Progress(
         SpinnerColumn(),
@@ -228,7 +228,9 @@ def main() -> int:
                     "issues_opened",
                     f"{scope} type:issue author:{login} created:{date_range}",
                 ),
-                ("involves_me", f"{scope} involves:{login} updated:{date_range}"),
+                # Some token types require separate issue and pull request searches.
+                ("involves_me", f"{scope} is:issue involves:{login} updated:{date_range}"),
+                ("involves_me", f"{scope} is:pull-request involves:{login} updated:{date_range}"),
             ]
 
             for kind, q in issue_pr_queries:

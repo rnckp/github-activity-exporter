@@ -115,6 +115,7 @@ Open `02_explore_activity.ipynb` in Jupyter/VS Code. The notebook provides:
 | Issue                     | Solution                                                                     |
 | ------------------------- | ---------------------------------------------------------------------------- |
 | `ERROR: set GITHUB_TOKEN` | Set `GITHUB_TOKEN` in `.env` next to the script or export it in your shell |
+| `422` during `involves_me` | Use the updated script, which searches issues and pull requests separately for token compatibility |
 | `403 Forbidden`           | Check repository permissions, organization token policy/approval, and SSO authorization |
 | `404 Not Found` on org    | You're not a member, or token doesn't have access to that org                |
 | Rate limit hit            | Script auto-waits. For large exports, run during off-peak hours              |

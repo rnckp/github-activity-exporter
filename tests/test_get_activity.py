@@ -72,12 +72,20 @@ class ExportTests(unittest.TestCase):
                         "html_url": f"https://github.com/{owner}/project/commit/example",
                     }
                 ]
+            if not any(
+                qualifier in query
+                for qualifier in ("type:pr", "type:issue", "is:issue", "is:pull-request")
+            ):
+                raise activity.requests.HTTPError(
+                    "422: Search must specify issues or pull requests"
+                )
+            item_type = "pull" if "type:pr" in query or "is:pull-request" in query else "issues"
             return [
                 {
                     "number": 1,
                     "title": "Example issue or PR",
                     "repository_url": f"https://api.github.com/repos/{owner}/project",
-                    "html_url": f"https://github.com/{owner}/project/issues/1",
+                    "html_url": f"https://github.com/{owner}/project/{item_type}/1",
                 }
             ]
 
@@ -101,11 +109,20 @@ class ExportTests(unittest.TestCase):
             ):
                 self.assertEqual(activity.main(), 0)
 
-            self.assertEqual(len(queries), 7 * len(expected_scopes))
+            self.assertEqual(len(queries), 8 * len(expected_scopes))
             self.assertEqual({q.split()[0] for q in queries}, set(expected_scopes))
             self.assertTrue(all("2026-01-01..2026-12-31" in q for q in queries))
             records = json.loads(Path(f"{prefix}_2026-01-01_2026-12-31.json").read_text())
-            self.assertEqual(len(records), 7 * len(expected_scopes))
+            self.assertEqual(len(records), 8 * len(expected_scopes))
+            for scope in expected_scopes:
+                owner = scope.split(":")[1]
+                self.assertEqual(
+                    {r["url"] for r in records if r["kind"] == "involves_me" and r["org"] == owner},
+                    {
+                        f"https://github.com/{owner}/project/issues/1",
+                        f"https://github.com/{owner}/project/pull/1",
+                    },
+                )
             self.assertEqual(
                 {r["org"] for r in records}, {s.split(":")[1] for s in expected_scopes}
             )
