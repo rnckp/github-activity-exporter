@@ -16,6 +16,33 @@ spec.loader.exec_module(activity)
 
 
 class ExportTests(unittest.TestCase):
+    def test_token_from_dotenv_with_environment_taking_precedence(self) -> None:
+        for environment in ({}, {"GITHUB_TOKEN": "environment-token"}):
+            with self.subTest(environment=environment), tempfile.TemporaryDirectory() as directory:
+                script = Path(directory) / "01_get_activity.py"
+                script.with_name(".env").write_text("GITHUB_TOKEN=dotenv-token\n")
+                with (
+                    patch.dict(os.environ, environment, clear=True),
+                    patch.object(activity, "__file__", str(script)),
+                    patch("sys.argv", [str(script), "--out", str(Path(directory) / "activity")]),
+                    patch.object(activity, "GitHubClient") as client,
+                ):
+                    client.return_value.me.return_value = {"login": "example"}
+                    client.return_value.paginate.return_value = []
+                    self.assertEqual(activity.main(), 0)
+                    client.assert_called_once_with(environment.get("GITHUB_TOKEN", "dotenv-token"))
+
+    def test_missing_token_exits_without_api_calls(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(activity, "__file__", str(Path(directory) / "01_get_activity.py")),
+            patch("sys.argv", [str(SCRIPT)]),
+            patch.object(activity, "GitHubClient") as client,
+        ):
+            self.assertEqual(activity.main(), 2)
+            client.assert_not_called()
+
     def test_default_exports_personal_activity_with_or_without_organizations(self) -> None:
         for orgs in ([], ["example-org"]):
             with self.subTest(orgs=orgs):

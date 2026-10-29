@@ -49,11 +49,21 @@ A personal-account token's "All repositories" setting covers repositories owned 
 account, not every organization repository you can access.
 
 If you use a classic token instead, grant `repo` for private repositories and `read:org`
-for organization membership discovery. Export your token in the shell running the script:
+for organization membership discovery. Save your token in a `.env` file next to
+`01_get_activity.py` (the repository already ignores `.env` in Git):
+
+```dotenv
+GITHUB_TOKEN=your_token_here
+```
+
+Alternatively, export it in the shell running the script:
 
 ```bash
 export GITHUB_TOKEN="github_pat_..."
 ```
+
+An existing `GITHUB_TOKEN` environment variable takes precedence over `.env`.
+The script loads `.env` from its own directory, including when run from another directory.
 
 ### Include all organization memberships automatically
 
@@ -104,7 +114,7 @@ Open `02_explore_activity.ipynb` in Jupyter/VS Code. The notebook provides:
 
 | Issue                     | Solution                                                                     |
 | ------------------------- | ---------------------------------------------------------------------------- |
-| `ERROR: set GITHUB_TOKEN` | Export your token: `export GITHUB_TOKEN="..."`                               |
+| `ERROR: set GITHUB_TOKEN` | Set `GITHUB_TOKEN` in `.env` next to the script or export it in your shell |
 | `403 Forbidden`           | Check repository permissions, organization token policy/approval, and SSO authorization |
 | `404 Not Found` on org    | You're not a member, or token doesn't have access to that org                |
 | Rate limit hit            | Script auto-waits. For large exports, run during off-peak hours              |

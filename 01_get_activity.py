@@ -11,9 +11,11 @@ import os
 import re
 import time
 from collections.abc import Iterable
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
@@ -142,9 +144,12 @@ def main() -> int:
     )
     args = ap.parse_args()
 
+    load_dotenv(Path(__file__).resolve().with_name(".env"), override=False)
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
-        console.print("[bold red]ERROR:[/bold red] set GITHUB_TOKEN in your environment.")
+        console.print(
+            "[bold red]ERROR:[/bold red] set GITHUB_TOKEN in your environment or .env file."
+        )
         return 2
 
     if args.date_from and args.date_to:
