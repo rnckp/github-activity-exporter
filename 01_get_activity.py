@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Export your GitHub activity (commits, PRs, issues) across organizations.
+Export your GitHub activity (commits, PRs, issues) across personal and organization repositories.
 """
 
 import argparse
@@ -116,13 +116,13 @@ def main() -> int:
     Main entry point for the GitHub activity exporter.
 
     Fetches commits, PRs, and issues for the authenticated user across
-    their organization memberships and exports to JSON and CSV files.
+    their personal repositories and organizations and exports to JSON and CSV files.
 
     Returns:
         0 on success, 2 if GITHUB_TOKEN is not set.
     """
     ap = argparse.ArgumentParser(
-        description="Export your GitHub activity (commits/PRs/issues/etc.) per organization."
+        description="Export your GitHub activity across personal and organization repositories."
     )
     ap.add_argument(
         "--from",
@@ -133,7 +133,7 @@ def main() -> int:
     ap.add_argument(
         "--org",
         action="append",
-        help="Restrict to specific org(s). Can be used multiple times.",
+        help="Search only these org(s), excluding personal repositories. Can be used multiple times.",
     )
     ap.add_argument(
         "--out",
@@ -159,14 +159,16 @@ def main() -> int:
     me = gh.me()
     login = me["login"]
 
-    # Orgs you are a member of
-    memberships = list(
-        gh.paginate("/user/memberships/orgs", params={"state": "active", "per_page": 100})
-    )
-    orgs = [m["organization"]["login"] for m in memberships]
     if args.org:
-        wanted = set(args.org)
-        orgs = [o for o in orgs if o in wanted]
+        scopes = [(org, f"org:{org}") for org in dict.fromkeys(args.org)]
+    else:
+        memberships = gh.paginate(
+            "/user/memberships/orgs", params={"state": "active", "per_page": 100}
+        )
+        scopes = [(login, f"user:{login}")]
+        scopes.extend(
+            (m["organization"]["login"], f"org:{m['organization']['login']}") for m in memberships
+        )
 
     results: list[dict] = []
     seen = set()  # (kind, url) or (kind, sha)
@@ -182,18 +184,14 @@ def main() -> int:
         Panel(
             f"[bold]User:[/bold] {login}\n"
             f"[bold]Date range:[/bold] {iso_date(d_from)} → {iso_date(d_to)}\n"
-            f"[bold]Organizations:[/bold] {', '.join(orgs) if orgs else 'None found'}",
+            f"[bold]Repository owners:[/bold] {', '.join(owner for owner, _ in scopes)}",
             title="[bold cyan]GitHub Activity Export[/bold cyan]",
             border_style="cyan",
         )
     )
 
-    if not orgs:
-        console.print("[yellow]No organizations to process.[/yellow]")
-        return 0
-
-    # Calculate total tasks: 7 queries per org (6 issue/PR queries + 1 commit query)
-    total_tasks = len(orgs) * 7
+    # Calculate total tasks: 7 queries per owner (6 issue/PR queries + 1 commit query)
+    total_tasks = len(scopes) * 7
 
     with Progress(
         SpinnerColumn(),
@@ -204,38 +202,38 @@ def main() -> int:
     ) as progress:
         overall_task = progress.add_task("[cyan]Fetching activity...", total=total_tasks)
 
-        for org in orgs:
+        for owner, scope in scopes:
             # Issues / PRs search queries
             issue_pr_queries = [
-                ("prs_opened", f"org:{org} type:pr author:{login} created:{date_range}"),
+                ("prs_opened", f"{scope} type:pr author:{login} created:{date_range}"),
                 (
                     "prs_merged",
-                    f"org:{org} type:pr author:{login} is:merged merged:{date_range}",
+                    f"{scope} type:pr author:{login} is:merged merged:{date_range}",
                 ),
                 # Reviews/comments: updated is a practical proxy for reviewed_at/commented_at.
                 (
                     "prs_reviewed",
-                    f"org:{org} type:pr reviewed-by:{login} updated:{date_range}",
+                    f"{scope} type:pr reviewed-by:{login} updated:{date_range}",
                 ),
                 (
                     "prs_commented",
-                    f"org:{org} type:pr commenter:{login} updated:{date_range}",
+                    f"{scope} type:pr commenter:{login} updated:{date_range}",
                 ),
                 (
                     "issues_opened",
-                    f"org:{org} type:issue author:{login} created:{date_range}",
+                    f"{scope} type:issue author:{login} created:{date_range}",
                 ),
-                ("involves_me", f"org:{org} involves:{login} updated:{date_range}"),
+                ("involves_me", f"{scope} involves:{login} updated:{date_range}"),
             ]
 
             for kind, q in issue_pr_queries:
-                progress.update(overall_task, description=f"[cyan]{org}[/cyan] → {kind}")
+                progress.update(overall_task, description=f"[cyan]{owner}[/cyan] → {kind}")
                 for item in gh.paginate(
                     "/search/issues", params={"q": q, "per_page": 100}, items_key="items"
                 ):
                     rec = {
                         "kind": kind,
-                        "org": org,
+                        "org": owner,
                         "repo": repo_full_name_from_repository_url(item.get("repository_url", "")),
                         "number": item.get("number"),
                         "title": item.get("title"),
@@ -245,12 +243,12 @@ def main() -> int:
                         "updated_at": item.get("updated_at"),
                         "closed_at": item.get("closed_at"),
                     }
-                    add_record(rec, rec["url"] or f"{org}:{kind}:{rec['repo']}#{rec['number']}")
+                    add_record(rec, rec["url"] or f"{owner}:{kind}:{rec['repo']}#{rec['number']}")
                 progress.advance(overall_task)
 
             # Commits search query (default branches only)
-            progress.update(overall_task, description=f"[cyan]{org}[/cyan] → commits")
-            commit_q = f"org:{org} author:{login} committer-date:{date_range}"
+            progress.update(overall_task, description=f"[cyan]{owner}[/cyan] → commits")
+            commit_q = f"{scope} author:{login} committer-date:{date_range}"
             for item in gh.paginate(
                 "/search/commits",
                 params={"q": commit_q, "per_page": 100},
@@ -261,7 +259,7 @@ def main() -> int:
                 author = commit.get("author") or {}
                 rec = {
                     "kind": "commits",
-                    "org": org,
+                    "org": owner,
                     "repo": (item.get("repository") or {}).get("full_name"),
                     "sha": sha,
                     "message": (commit.get("message") or "").splitlines()[0],

@@ -1,6 +1,6 @@
 # GitHub Activity Exporter and Analyzer
 
-**Export and analyze your GitHub activity across organizations.**
+**Export and analyze your GitHub activity across personal and organization repositories.**
 
 [![Python](https://img.shields.io/badge/python-v3.11+-blue.svg)](https://github.com/rnckp/github-activity-exporter)
 ![GitHub License](https://img.shields.io/github/license/rnckp/github-activity-exporter)
@@ -37,32 +37,47 @@ uv sync
 
 ## GitHub Token Setup
 
-1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
-2. Click **"Generate new token"**
-3. Set name and expiration
-4. **Required permissions:**
+Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens).
+Select your personal account as the resource owner and choose the repositories to export.
+Grant read access to **Contents**, **Issues**, and **Pull requests**. **Metadata** read access
+is included automatically. No user permissions are needed for personal repository exports.
 
-   - `repo` — Access repository data
-   - `user -> read:user` — Read ALL user profile data
+For organization repositories, use a token whose resource owner is that organization,
+with access to the required repositories and any required organization approval.
+Pass `--org ORGANIZATION` to search it directly without relying on membership discovery.
+A personal-account token's "All repositories" setting covers repositories owned by that
+account, not every organization repository you can access.
 
-5. Copy the token
+If you use a classic token instead, grant `repo` for private repositories and `read:org`
+for organization membership discovery. Export your token in the shell running the script:
 
 ```bash
 export GITHUB_TOKEN="github_pat_..."
 ```
+
+### Include all organization memberships automatically
+
+Run without `--org` to include personal repositories and every organization returned by
+`/user/memberships/orgs`. To export private repositories across multiple organizations
+in one run, use a classic token with `repo` and `read:org`, if those organizations permit
+classic tokens. For organizations using SAML SSO, authorize the token for each organization.
+
+A fine-grained token is limited to one resource owner. For those tokens, export each
+organization separately with its own token and `--org NAME`. Membership discovery does
+not grant repository access.
 
 ## Usage
 
 ### Export Activity
 
 ```bash
-# Default: rolling last 365 days, all orgs you're a member of
+# Default: rolling last 365 days, personal repositories and discovered organizations
 uv run 01_get_activity.py
 
 # Custom date range
 uv run 01_get_activity.py --from 2025-01-01 --to 2025-12-31
 
-# Specific organization(s)
+# Specific organization(s) only, excluding personal repositories
 uv run 01_get_activity.py --org my-org --org another-org
 
 # Custom output prefix
@@ -70,6 +85,9 @@ uv run 01_get_activity.py --out my_activity
 ```
 
 **Output:** `github_activity_YYYY-MM-DD_YYYY-MM-DD.csv` and `.json`
+
+The `org` column contains the repository owner, including your username for personal
+repositories. Its name is preserved for compatibility with the analysis notebook.
 
 ### Analyze Activity
 
@@ -87,10 +105,11 @@ Open `02_explore_activity.ipynb` in Jupyter/VS Code. The notebook provides:
 | Issue                     | Solution                                                                     |
 | ------------------------- | ---------------------------------------------------------------------------- |
 | `ERROR: set GITHUB_TOKEN` | Export your token: `export GITHUB_TOKEN="..."`                               |
-| `403 Forbidden`           | Token lacks required permissions. Regenerate with `read:org` + `repo`        |
+| `403 Forbidden`           | Check repository permissions, organization token policy/approval, and SSO authorization |
 | `404 Not Found` on org    | You're not a member, or token doesn't have access to that org                |
 | Rate limit hit            | Script auto-waits. For large exports, run during off-peak hours              |
-| Empty results             | Check date range. Verify org membership with `gh api /user/memberships/orgs` |
+| Empty results             | Check date range and token repository access. For an organization, pass `--org NAME` |
+| `No organizations to process` | Older versions only searched organizations. Use the updated script to include personal repositories |
 | Missing commits           | Only default branch commits are indexed by GitHub Search API                 |
 
 ### Verify Token and Access
@@ -111,7 +130,7 @@ curl -i -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
 
 If `/user` doesn’t return your login, the script will search for the wrong user and likely get zero hits.
 
-**Debug the org discovery (this is the most common “empty output” cause).**
+**Debug organization discovery.**
 
 Try both endpoints manually:
 
@@ -127,7 +146,11 @@ curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" \
   "https://api.github.com/user/orgs?per_page=100" | jq '.[].login'
 ```
 
-If these return empty lists, your token likely lacks `read:org` permission or you are not a member of any orgs.
+An empty organization list does not mean your personal repositories are inaccessible.
+Fine-grained tokens return an empty list from `/user/orgs`; this endpoint is not a useful
+token-access check for them. With the updated script, personal repositories are searched
+even when membership discovery returns no organizations. Use `--org NAME` to search a
+known organization directly, subject to the token's repository access.
 
 ## Feedback and Contributing
 
